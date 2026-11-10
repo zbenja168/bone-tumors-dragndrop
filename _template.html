@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bone Tumors: Drag &amp; Drop | Active Transport</title>
+<meta name="description" content="Match each bone tumor to its vignette, radiography, histology, genetics and treatment.">
+<script defer src="https://activetransport.app/static/tool-track.js"></script>
+<style>
+  :root { --bg:#0b1220; --card:#111a2e; --card2:#17223a; --line:rgba(255,255,255,.08); --text:#e8eef9; --muted:#94a3b8;
+          --accent:#84cc16; --accent2:#22d3ee; --ok:#22c55e; --bad:#ef4444; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 'Segoe UI', system-ui, -apple-system, sans-serif; min-height: 100vh; }
+  /* faint Active Transport watermark behind the board */
+  body::before { content: 'ACTIVE TRANSPORT'; position: fixed; left: 50%; top: 52%; transform: translate(-50%, -50%) rotate(-18deg);
+    font-weight: 900; font-size: min(12vw, 150px); letter-spacing: .08em; white-space: nowrap; pointer-events: none; z-index: 0;
+    background: linear-gradient(135deg, #38bdf8, #22d3ee 45%, #2dd4bf); -webkit-background-clip: text; background-clip: text;
+    color: transparent; opacity: .045; }
+  .wrap { position: relative; z-index: 1; max-width: 1380px; margin: 0 auto; padding: 22px 16px 90px; }
+  header { text-align: center; margin-bottom: 14px; }
+  .eyebrow { font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; color: var(--accent2); font-weight: 700; }
+  h1 { margin: 4px 0 6px; font-size: clamp(1.5rem, 3.4vw, 2.2rem); background: linear-gradient(135deg, #d9f99d, #84cc16); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .sub { color: var(--muted); margin: 0 auto; max-width: 720px; font-size: .9rem; }
+  .modes { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 16px 0 10px; }
+  .mode { background: var(--card); border: 1px solid var(--line); color: var(--muted); border-radius: 999px; padding: 7px 14px; font: inherit; font-size: .85rem; cursor: pointer; }
+  .mode.on { color: #0b1220; background: var(--accent); border-color: var(--accent); font-weight: 700; }
+  .bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center; margin-bottom: 14px; }
+  .btn { background: var(--card2); color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 8px 14px; font: inherit; font-size: .86rem; cursor: pointer; }
+  .btn.primary { background: var(--accent2); color: #0b1220; border-color: var(--accent2); font-weight: 700; }
+  .btn:hover { border-color: rgba(255,255,255,.25); }
+  .chk { display: inline-flex; gap: 6px; align-items: center; color: var(--muted); font-size: .85rem; cursor: pointer; }
+  .score { color: var(--muted); font-size: .9rem; } .score b { color: var(--text); }
+  .layout { display: grid; grid-template-columns: 330px 1fr; gap: 16px; align-items: start; }
+  @media (max-width: 960px) { .layout { grid-template-columns: 1fr; } }
+  .bank { position: sticky; top: 12px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px; max-height: calc(100vh - 24px); overflow: auto; }
+  @media (max-width: 960px) { .bank { position: static; max-height: 46vh; } }
+  .bank h2 { margin: 0 0 8px; font-size: .78rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; }
+  .bank.drop-hot { outline: 2px dashed var(--accent2); }
+  .chip { background: var(--card2); border: 1px solid rgba(255,255,255,.12); border-left: 3px solid var(--c, var(--accent2)); border-radius: 9px;
+    padding: 8px 10px; margin: 0 0 8px; font-size: .84rem; cursor: grab; user-select: none; touch-action: manipulation; }
+  .chip:hover { border-color: rgba(255,255,255,.3); }
+  .chip.sel { outline: 2px solid var(--accent2); }
+  .chip.dragging { opacity: .45; }
+  .chip .tag { display: block; font-size: .64rem; letter-spacing: .08em; text-transform: uppercase; color: var(--c, var(--accent2)); margin-bottom: 2px; font-weight: 700; }
+  .board { background: var(--card); border: 1px solid var(--line); border-radius: 14px; overflow: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { border-bottom: 1px solid var(--line); padding: 8px; vertical-align: top; text-align: left; }
+  thead th { position: sticky; top: 0; background: #0f1830; font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); z-index: 2; }
+  td.tumor { font-weight: 700; width: 170px; color: #d9f99d; }
+  .slot { min-height: 46px; border: 1.5px dashed rgba(148,163,184,.35); border-radius: 9px; padding: 4px; transition: .12s; }
+  .slot.hot { border-color: var(--accent2); background: rgba(34,211,238,.08); }
+  .slot.selhint { border-color: rgba(34,211,238,.6); }
+  .slot .chip { margin: 0; cursor: pointer; }
+  .slot.ok .chip { border-color: var(--ok); background: rgba(34,197,94,.14); }
+  .slot.bad .chip { border-color: var(--bad); background: rgba(239,68,68,.14); }
+  .slot.na { border: none; color: var(--muted); font-size: .8rem; padding-top: 12px; }
+  .slot .ans { font-size: .78rem; color: #86efac; padding: 4px 2px 0; }
+  .done { display: none; margin: 14px auto 0; max-width: 520px; text-align: center; background: rgba(34,197,94,.12); border: 1px solid rgba(34,197,94,.4); border-radius: 12px; padding: 12px; }
+  .done.show { display: block; }
+  .hint { color: var(--muted); font-size: .8rem; text-align: center; margin-top: 6px; }
+</style>
+</head>
+<body>
+<!--BADGE-->
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Secondary Active Transport · MSK · Bone Tumors</div>
+    <h1>Bone Tumors: Drag &amp; Drop</h1>
+    <p class="sub">Pick a column, then drag each card onto the tumor it belongs to (or tap a card, then tap a slot). Whole table mixes every column.</p>
+  </header>
+  <div class="modes" id="modes"></div>
+  <div class="bar">
+    <button class="btn primary" id="btnCheck">Check</button>
+    <button class="btn" id="btnShow">Show answers</button>
+    <button class="btn" id="btnReset">Shuffle &amp; reset</button>
+    <label class="chk"><input type="checkbox" id="instant"> Instant feedback</label>
+    <span class="score" id="score"></span>
+  </div>
+  <div class="layout">
+    <aside class="bank" id="bank"><h2><span>Cards</span><span id="left"></span></h2><div id="chips"></div></aside>
+    <div>
+      <div class="board"><table><thead id="thead"></thead><tbody id="tbody"></tbody></table></div>
+      <div class="done" id="done">🎉 All correct! Try another column or the whole table.</div>
+      <p class="hint">Drop a card back on the card list (or tap a placed card) to take it out of a slot.</p>
+    </div>
+  </div>
+</div>
+<script>
+/*DATA*/
+const COLORS = { vignette: '#22d3ee', bm: '#f59e0b', rad: '#a78bfa', histo: '#f472b6', gen: '#34d399', tx: '#60a5fa' };
+const $ = (id) => document.getElementById(id);
+const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+let mode = 'vignette', cards = [], placed = {}, selected = null, shown = false;
+try { const m = localStorage.getItem('btdnd-mode'); if (m && (m === 'all' || COLS.some(([k]) => k === m))) mode = m; } catch (e) {}
+try { $('instant').checked = localStorage.getItem('btdnd-instant') === '1'; } catch (e) {}
+
+function activeCols() { return mode === 'all' ? COLS : COLS.filter(([k]) => k === mode); }
+function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+
+function setup() {
+  cards = []; placed = {}; selected = null; shown = false;
+  activeCols().forEach(([k]) => ROWS.forEach((r, i) => { if (r[k]) cards.push({ id: k + '-' + i, col: k, text: r[k] }); }));
+  shuffle(cards);
+  $('modes').innerHTML = COLS.map(([k, n]) => `<button class="mode${k === mode ? ' on' : ''}" data-m="${k}">${esc(n)}</button>`).join('') +
+    `<button class="mode${mode === 'all' ? ' on' : ''}" data-m="all">Whole table</button>`;
+  document.querySelectorAll('.mode').forEach((b) => b.onclick = () => { mode = b.dataset.m; try { localStorage.setItem('btdnd-mode', mode); } catch (e) {} setup(); });
+  const cols = activeCols();
+  $('thead').innerHTML = '<tr><th>Tumor</th>' + cols.map(([, n]) => `<th>${esc(n)}</th>`).join('') + '</tr>';
+  $('tbody').innerHTML = ROWS.map((r, i) => '<tr><td class="tumor">' + esc(r.t) + '</td>' +
+    cols.map(([k]) => r[k] ? `<td><div class="slot" data-slot="${k}-${i}" data-col="${k}"></div></td>` : '<td><div class="slot na">— (not in source)</div></td>').join('') + '</tr>').join('');
+  document.querySelectorAll('.slot[data-slot]').forEach(wireSlot);
+  wireBank(); render();
+}
+function chipHTML(c) {
+  return `<div class="chip" draggable="true" data-id="${c.id}" style="--c:${COLORS[c.col]}">${mode === 'all' ? `<span class="tag">${esc(COLS.find(([k]) => k === c.col)[1])}</span>` : ''}${esc(c.text)}</div>`;
+}
+function answerFor(slotId) { const [k, i] = [slotId.split('-')[0], +slotId.split('-')[1]]; return ROWS[i][k]; }
+function render() {
+  const inSlots = new Set(Object.values(placed));
+  $('chips').innerHTML = cards.filter((c) => !inSlots.has(c.id)).map(chipHTML).join('');
+  $('left').textContent = `${cards.length - inSlots.size} left`;
+  document.querySelectorAll('.slot[data-slot]').forEach((s) => {
+    const cid = placed[s.dataset.slot], c = cards.find((x) => x.id === cid);
+    s.innerHTML = (c ? chipHTML(c) : '') + (shown && !c ? `<div class="ans">${esc(answerFor(s.dataset.slot))}</div>` : '');
+    s.classList.remove('ok', 'bad');
+  });
+  document.querySelectorAll('.chip').forEach(wireChip);
+  if ($('instant').checked) grade(false); else score(false);
+}
+function correct(slotId) { const cid = placed[slotId]; if (!cid) return null; const c = cards.find((x) => x.id === cid);
+  return c.col === slotId.split('-')[0] && c.text === answerFor(slotId); } // same text counts (e.g. duplicate "Benign")
+function grade(mark = true) {
+  let ok = 0, filled = 0;
+  document.querySelectorAll('.slot[data-slot]').forEach((s) => { const r = correct(s.dataset.slot); if (r === null) return; filled++; if (r) ok++;
+    s.classList.add(r ? 'ok' : 'bad'); });
+  score(true, ok, filled);
+}
+function score(graded, ok, filled) {
+  const total = document.querySelectorAll('.slot[data-slot]').length;
+  if (!graded) { $('score').innerHTML = `<b>${Object.keys(placed).length}</b> / ${total} placed`; $('done').classList.remove('show'); return; }
+  $('score').innerHTML = `<b>${ok}</b> / ${total} correct`;
+  $('done').classList.toggle('show', ok === total);
+  if (ok === total && window.atTrack) { try { window.atTrack('question_answered'); } catch (e) {} }
+}
+function place(cid, slotId) {
+  for (const [s, c] of Object.entries(placed)) if (c === cid) delete placed[s];
+  if (slotId) placed[slotId] = cid;
+  selected = null; render();
+}
+function wireChip(el) {
+  el.addEventListener('dragstart', (e) => { e.dataTransfer.setData('text/plain', el.dataset.id); el.classList.add('dragging'); });
+  el.addEventListener('dragend', () => el.classList.remove('dragging'));
+  el.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (el.closest('.slot')) { place(el.dataset.id, null); return; } // tap a placed card -> back to the list
+    selected = selected === el.dataset.id ? null : el.dataset.id;
+    document.querySelectorAll('.chip').forEach((c) => c.classList.toggle('sel', c.dataset.id === selected));
+    document.querySelectorAll('.slot[data-slot]').forEach((s) => s.classList.toggle('selhint', !!selected));
+  });
+}
+function wireSlot(s) {
+  s.addEventListener('dragover', (e) => { e.preventDefault(); s.classList.add('hot'); });
+  s.addEventListener('dragleave', () => s.classList.remove('hot'));
+  s.addEventListener('drop', (e) => { e.preventDefault(); s.classList.remove('hot'); place(e.dataTransfer.getData('text/plain'), s.dataset.slot); });
+  s.addEventListener('click', () => { if (selected) place(selected, s.dataset.slot); });
+}
+function wireBank() {
+  const b = $('bank');
+  b.ondragover = (e) => { e.preventDefault(); b.classList.add('drop-hot'); };
+  b.ondragleave = () => b.classList.remove('drop-hot');
+  b.ondrop = (e) => { e.preventDefault(); b.classList.remove('drop-hot'); place(e.dataTransfer.getData('text/plain'), null); };
+}
+$('btnCheck').onclick = () => grade(true);
+$('btnShow').onclick = () => { shown = !shown; $('btnShow').textContent = shown ? 'Hide answers' : 'Show answers'; render(); };
+$('btnReset').onclick = setup;
+$('instant').onchange = (e) => { try { localStorage.setItem('btdnd-instant', e.target.checked ? '1' : '0'); } catch (x) {} render(); };
+setup();
+</script>
+</body>
+</html>
